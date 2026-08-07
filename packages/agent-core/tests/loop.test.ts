@@ -570,6 +570,29 @@ describe('AgentLoop', () => {
     expect(loop.messages.length).toBeLessThanOrEqual(2)
     expect(loop.messages[0]).toEqual({ role: 'user', text: 'q2' })
   })
+
+  it('restore leaves empty text on assistant tool-call messages', () => {
+    // OpenAI-compatible serializers need content:null for tool-call turns;
+    // filling COMPLETED_VIA_TOOLS_TEXT would emit a placeholder instead.
+    const transport = scriptedTransport([])
+    const loop = new AgentLoop({ transport, skill: makeSkill() })
+    loop.restore([
+      { role: 'user', text: 'edit this' },
+      {
+        role: 'assistant',
+        text: '',
+        toolCalls: [{ id: 'c1', name: 'do_thing', input: { x: 1 } }],
+      },
+      { role: 'tool', results: [{ id: 'c1', name: 'do_thing', output: 'ok' }] },
+      { role: 'assistant', text: '' },
+    ])
+    const withTools = loop.messages[1] as Extract<AgentMessage, { role: 'assistant' }>
+    expect(withTools.toolCalls?.length).toBe(1)
+    expect(withTools.text).toBe('')
+    const terminal = loop.messages[3] as Extract<AgentMessage, { role: 'assistant' }>
+    expect(terminal.toolCalls?.length ?? 0).toBe(0)
+    expect(terminal.text).toBe(COMPLETED_VIA_TOOLS_TEXT)
+  })
 })
 
 describe('AgentLoop compaction', () => {

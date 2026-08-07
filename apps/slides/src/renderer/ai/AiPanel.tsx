@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { AgentLoop, composeSkills, type AgentImage, type ToolDisplay } from '@genoffice/agent-core'
+import {
+  AgentLoop,
+  COMPLETED_VIA_TOOLS_TEXT,
+  composeSkills,
+  type AgentImage,
+  type ToolDisplay,
+} from '@genoffice/agent-core'
 import type { RenderSlide } from '@genoffice/pptx-render'
 import type { AiSettings, AttachmentAddResult, AttachmentMeta } from '../../shared/ipc'
 import { ATTACHMENT_IMAGE_EXTS } from '../../shared/ipc'
@@ -975,9 +981,11 @@ export function AiPanel({
           setChat((prev) => [...prev, { role: 'assistant', text: '', streaming: true }])
         },
         onDone: ({ text, cancelled, turnLimit }) => {
+          // History sentinel is for providers only — never show it as chat prose.
+          const visibleText = text === COMPLETED_VIA_TOOLS_TEXT ? '' : text
           const finalText = turnLimit
-            ? [text, tGlobal('aiTurnLimit')].filter(Boolean).join('\n\n')
-            : text || (cancelled ? tGlobal('aiStoppedNote') : '')
+            ? [visibleText, tGlobal('aiTurnLimit')].filter(Boolean).join('\n\n')
+            : visibleText || (cancelled ? tGlobal('aiStoppedNote') : '')
           patchLastAssistant((last) => ({
             streaming: false,
             text: finalText || (last.tools?.length ? last.text : tGlobal('aiNoResponse')),

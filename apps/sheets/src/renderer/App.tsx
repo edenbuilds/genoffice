@@ -842,7 +842,7 @@ export function App(): React.JSX.Element {
           const prose =
             text && text !== COMPLETED_VIA_TOOLS_TEXT
               ? text
-              : runLastTextRef.current || toolSummaries || text
+              : runLastTextRef.current || toolSummaries
           // A final empty turn must not claim completion: reuse the model's last
           // streamed text; with none, only a mutating run gets the "done" phrasing.
           const fallback = cancelled

@@ -300,6 +300,42 @@ describe('streamForProvider: gemini', () => {
     expect(toolCalls[0]).toMatchObject({ name: 'set_cell', input: { a1: '42' } })
   })
 
+  it('never sends a model turn with empty parts when history has edits-only replies', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        okResponse(
+          sseStream([
+            'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}',
+            'data: {"candidates":[{"finishReason":"STOP"}]}',
+          ]),
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const { cb } = collector()
+    await streamForProvider(
+      'gemini',
+      { apiKey: 'k', model: 'gemini-2.5-flash' },
+      'sys',
+      [
+        { role: 'user', text: 'first' },
+        { role: 'assistant', text: '' },
+        { role: 'user', text: 'second' },
+      ],
+      [],
+      100,
+      cb,
+    )
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string) as {
+      contents: Array<{ role: string; parts: unknown[] }>
+    }
+    for (const msg of body.contents) {
+      if (msg.role !== 'model') continue
+      expect(Array.isArray(msg.parts)).toBe(true)
+      expect(msg.parts.length).toBeGreaterThan(0)
+    }
+  })
+
   it('throws when the prompt is blocked instead of finishing an empty turn', async () => {
     const body = sseStream(['data: {"promptFeedback":{"blockReason":"SAFETY"}}'])
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okResponse(body)))
