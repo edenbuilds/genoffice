@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ReactElement } from 'react'
-import { AgentLoop } from '@genoffice/agent-core'
+import { AgentLoop, COMPLETED_VIA_TOOLS_TEXT } from '@genoffice/agent-core'
 import type { AiSettings } from '@genoffice/ai-provider'
 import { AiComposer, AiTypingIndicator } from '@genoffice/ui'
 import { aiLangDirective, t as tGlobal, useI18n } from '../i18n/locale'
@@ -132,9 +132,11 @@ export function AiPanel({
           setChat((prev) => [...prev, { role: 'assistant', text: '', streaming: true }])
         },
         onDone: ({ text, cancelled, turnLimit }) => {
+          // History sentinel is for providers only — never show it as chat prose.
+          const visibleText = text === COMPLETED_VIA_TOOLS_TEXT ? '' : text
           const final = turnLimit
-            ? [text, tGlobal('aiTurnLimit')].filter(Boolean).join('\n\n')
-            : text || (cancelled ? tGlobal('aiStopped') : '')
+            ? [visibleText, tGlobal('aiTurnLimit')].filter(Boolean).join('\n\n')
+            : visibleText || (cancelled ? tGlobal('aiStopped') : '')
           patchLast((last) => ({
             streaming: false,
             text: final || (last.tools?.length ? last.text : tGlobal('aiNoReply')),

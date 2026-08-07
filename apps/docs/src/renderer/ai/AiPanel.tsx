@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import type { Block } from '@genoffice/docx-engine'
-import { AgentLoop, composeSkills, type AgentImage } from '@genoffice/agent-core'
+import {
+  AgentLoop,
+  COMPLETED_VIA_TOOLS_TEXT,
+  composeSkills,
+  type AgentImage,
+} from '@genoffice/agent-core'
 import type { AiSettings, AttachmentAddResult, AttachmentMeta } from '../../shared/ipc'
 import { ATTACHMENT_IMAGE_EXTS } from '../../shared/ipc'
 import type { PmNode } from '../editor/convert'
@@ -417,9 +422,11 @@ export function AiPanel({
         },
         onDone: ({ text, cancelled, turnLimit, truncated }) => {
           // module-level t: the loop instance is created only once; the component's t goes stale with the first-render closure
+          // History sentinel is for providers only — never show it as chat prose.
+          const visibleText = text === COMPLETED_VIA_TOOLS_TEXT ? '' : text
           const baseText = turnLimit
-            ? [text, tModule('aiTurnLimit')].filter(Boolean).join('\n\n')
-            : text || (cancelled ? tModule('aiStopped') : '')
+            ? [visibleText, tModule('aiTurnLimit')].filter(Boolean).join('\n\n')
+            : visibleText || (cancelled ? tModule('aiStopped') : '')
           const finalText = truncated
             ? [baseText, tModule('aiTruncatedNote')].filter(Boolean).join('\n\n')
             : baseText

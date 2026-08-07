@@ -201,9 +201,13 @@ export class AgentLoop<TSnapshot = unknown> {
   restore(messages: readonly AgentMessage[]): void {
     if (this.running || this.history.length > 0 || messages.length === 0) return
     // Edits-only runs persist an assistant message with no text; give it a placeholder
-    // so the turn stays paired and providers never see an empty assistant content block
+    // so the turn stays paired and providers never see an empty assistant content block.
+    // Skip assistant messages that already carry toolCalls — OpenAI-compatible
+    // serializers must keep content:null for those turns.
     const normalized = messages.map((m) =>
-      m.role === 'assistant' && !m.text ? { ...m, text: COMPLETED_VIA_TOOLS_TEXT } : m,
+      m.role === 'assistant' && !m.text && !m.toolCalls?.length
+        ? { ...m, text: COMPLETED_VIA_TOOLS_TEXT }
+        : m,
     )
     // Unanswered user messages (a failed or interrupted run persisted them without a
     // reply) must not re-enter the model context: trailing ones would pair with the
