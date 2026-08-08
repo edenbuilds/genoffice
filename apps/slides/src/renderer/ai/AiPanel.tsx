@@ -320,6 +320,9 @@ export function AiPanel({
   const runToolsRef = useRef<
     Array<{ name: string; summary: string; isError?: boolean; input?: string; output?: string }>
   >([])
+  /** Tools executed this run, counted separately from runToolsRef: display-bearing ones stay out of the
+      persisted payload, but a run made only of them still has to persist its turn */
+  const runToolCountRef = useRef(0)
 
   // ── Chat history persistence ──────────────────────────────────────────────
   /** Resolve chatId and load history on first mount (AiPanel resets by key; no need to watch currentFilePath changes) */
@@ -957,6 +960,7 @@ export function AiPanel({
             display: execution.display,
           }
           lastTurnToolsRef.current.push(activity)
+          runToolCountRef.current += 1
           if (!execution.display) {
             runToolsRef.current.push({
               name: call.name,
@@ -999,8 +1003,10 @@ export function AiPanel({
             else if (qcPagesRef.current.length > 0) void runQcPassRef.current()
           })
           // Persist the assistant message (deckProgress not stored; tools store the whole run's full activity) —
-          // side effects outside the updater (StrictMode double-invokes updaters, duplicating history writes)
-          if (finalText && !cancelled) {
+          // side effects outside the updater (StrictMode double-invokes updaters, duplicating history writes).
+          // Runs that only ran tools (no text) persist too, or the turn vanishes from the restored transcript —
+          // and with it the user's question, which restore() drops once it has no reply to pair with
+          if (!cancelled && (finalText || runToolCountRef.current > 0)) {
             persistMessage('assistant', finalText, runToolsRef.current)
           }
         },
@@ -1152,6 +1158,7 @@ export function AiPanel({
     lastDisplayTextRef.current = displayText
     lastTurnToolsRef.current = []
     runToolsRef.current = []
+    runToolCountRef.current = 0
     stickToBottomRef.current = true
     // Internal orchestration prompts (like generate_deck step notes) skip the chat bubble and go only to the model
     const shown = displayText ?? instruction
